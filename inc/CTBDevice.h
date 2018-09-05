@@ -23,7 +23,9 @@ class CTBDevice
 
     void DestroyDevice();
 
+    /*for client devices*/
     bool CreateDevice(string host, string port);
+    /*for server devices*/
     bool CreateDevice(string port);
 
     /*
