@@ -13,13 +13,13 @@ $(ODIR)/%.o: src/%.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 bin/tests: obj/test_runner.o obj/SocketDevice.o obj/CTBDevice.o
-	$(CC) -o $@ $^ $(CFLAGS)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 bin/client: obj/client_main.o obj/SocketDevice.o obj/CTBDevice.o
-	$(CC) -o $@ $^ $(CFLAGS)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 bin/server: obj/server_main.o obj/SocketDevice.o obj/CTBDevice.o
-	$(CC) -o $@ $^ $(CFLAGS)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 

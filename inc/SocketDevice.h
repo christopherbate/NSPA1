@@ -12,6 +12,7 @@ For this project, we don't bother with an interface and instead just add some ba
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <errno.h>
 #include <netdb.h>
 #include <string>
 #include <iostream>
@@ -24,7 +25,7 @@ For this project, we don't bother with an interface and instead just add some ba
 using namespace std;
 
 // Actual max buffer is a little less than 64k, but well use this
-#define MAX_BUF_UDP 32768
+#define PACKET_SIZE 512
 
 class SocketDevice
 {
@@ -41,32 +42,31 @@ class SocketDevice
     bool CreateSocket(string host, string port);
     bool CreateSocket(string port);
 
-    unsigned long BlockingSend(char *data, unsigned long length, struct sockaddr *remoteAddr = NULL)
+    uint32_t BlockingSend(char *data, unsigned long length, struct sockaddr *remoteAddr = NULL)
     {
         if (m_fd < 0)
         {
             cerr << "Socket not open." << endl;
             return 0;
         }
-        if (length > MAX_BUF_UDP)
+        if (length > PACKET_SIZE)
         {
             cerr << "Buffer too big, split up." << endl;
             return 0;
         }
         if (m_type == PASSIVE && remoteAddr == NULL)
-        {
-            cerr << "Passive socket needs a remote address to send to." << endl;
-            return 0;
+        {            
+            remoteAddr = (struct sockaddr*)&m_remoteAddr;
         }
 
-        cout << "Sending: " << data << " of length " << length << endl;
+        //cout << "Sending: " << data << " of length " << length << endl;
         ssize_t sl = length;
-        unsigned long res = 0;
+        unsigned long res = 0;        
 
         // If we are passive, we need to specify address. Otherwise, we saved it using "connect"
         // although both are using datagram udp.
         if (m_type == PASSIVE)
-            res = sendto(m_fd, data, sl, 0, remoteAddr, sizeof(struct sockaddr_in));
+            res = sendto(m_fd, data, sl, 0, remoteAddr, sizeof(struct sockaddr_storage));
         else
             res = send(m_fd, data, sl, 0);
 
@@ -77,7 +77,7 @@ class SocketDevice
         }
         return res;
     }
-    unsigned int BlockingRecv(char *buffer, unsigned long size, string &recvAddress, struct sockaddr *remoteAddr = NULL)
+    uint32_t BlockingRecv(char *buffer, unsigned long size, string &recvAddress, struct sockaddr *remoteAddr = NULL)
     {
         if (m_fd < 0)
         {
@@ -104,8 +104,10 @@ class SocketDevice
         inet_ntop(AF_INET, &recvAddr, nameBuffer, INET_ADDRSTRLEN);
         recvAddress = string(nameBuffer);
 
-        if (remoteAddr)
-            memcpy(remoteAddr, &recvAddr, sizeof(struct sockaddr_in));
+        if (remoteAddr){
+            memcpy(remoteAddr, &recvAddr, recvAddrLen);
+        }
+        memcpy(&m_remoteAddr,&recvAddr,recvAddrLen);
 
         return res;
     }

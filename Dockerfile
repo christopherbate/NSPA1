@@ -1,15 +1,13 @@
-FROM ubuntu:xenial
+FROM gcc:latest
 
-WORKDIR /app
+WORKDIR /home/app/
 
 COPY . .
 
-RUN apt-get update
-RUN apt-get install -y build-essential
-
 RUN make
 
-EXPOSE 8080/tcp
+# This doesn't actually do anything, you must use docker run -p [host]:[container]
+EXPOSE 8080/udp
 
 # Run the server listening on port 8080
-CMD ["/app/bin/server","8080"]
+CMD ["/home/app/bin/server","8080"]

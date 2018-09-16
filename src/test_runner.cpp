@@ -1,8 +1,44 @@
 #include <iostream>
+#include <thread>
 #include "../inc/SocketDevice.h"
 #include "CTBDevice.h"
+#include "client.h"
+#include "SegmentTracker.h"
 
 using namespace std;
+
+void serverFn(bool *cancel)
+{
+    CTBDevice server;
+    server.CreateDevice("8080");
+    server.Listen("8080", *cancel);
+
+    server.DestroyDevice();
+}
+
+bool testProtocol()
+{
+    CTBDevice client;
+    client.CreateDevice("localhost", "8080");
+    bool cancel = false;
+    std::thread serverThread(serverFn, &cancel);
+    cout << "Launched server threads" << endl;
+    if (client.ActiveConnect("localhost", "8080",10))
+    {
+        cout << "Connected" << endl;
+    }
+    else
+    {
+        cout << "Failed" << endl;
+        return false;
+    }
+    cancel = true;
+    serverThread.join();
+
+    client.DestroyDevice();
+
+    return true;
+}
 
 int main()
 {
@@ -115,15 +151,16 @@ int main()
             else
             {
                 cout << "Send successful" << endl;
-                char buffer[MAX_BUF_UDP];
+                char buffer[PACKET_SIZE];
                 string address;
-                unsigned int len =Socket.BlockingRecv(buffer,MAX_BUF_UDP,address);
+                unsigned int len = Socket.BlockingRecv(buffer, PACKET_SIZE, address);
                 buffer[len] = '\0';
-                cout <<"Addr:"<<address<<endl;
-                cout <<"Len:"<<len<<endl;
-                cout <<"Recv: "<<buffer<<endl;    
-                if(Socket.DidTimeout()){
-                    cerr << "7 - Timeout flag should not be set."<<endl;
+                cout << "Addr:" << address << endl;
+                cout << "Len:" << len << endl;
+                cout << "Recv: " << buffer << endl;
+                if (Socket.DidTimeout())
+                {
+                    cerr << "7 - Timeout flag should not be set." << endl;
                     failed++;
                 }
             }
@@ -147,59 +184,117 @@ int main()
 
     //8 - create ctb device
     CTBDevice client;
-    CTBDevice server;
-    if(!client.CreateDevice("www.google.com","80")){
-        cerr << "Failed 8"<<endl;
+    if (!client.CreateDevice("localhost", "8080"))
+    {
+        cerr << "8 Failed to create client" << endl;
         failed++;
     }
     client.DestroyDevice();
 
+    cout << endl;
+
     // 9 - create client ands server
-    if(server.CreateDevice("8080")){
-        if(client.CreateDevice("localhost","8080")){
-            cout << "All devices created."<<endl;
-        } else {
-            cerr << "9 - failed to create client."<<endl;
-            failed++;
-        }        
-    } else {
-        cerr << " 9 - failed to create server"<<endl;
+    CTBDevice server;
+    if (!client.CreateDevice("localhost", "8080"))
+    {
+        cerr << "8 Failed to create client" << endl;
+        failed++;
+    }
+    if (!server.CreateDevice("8080"))
+    {
+        cerr << "8 Failed to create server" << endl;
         failed++;
     }
     client.DestroyDevice();
     server.DestroyDevice();
 
-    cout<<endl;
+    cout << endl;
+    cout << endl;
 
     // 10 - set socket timeout.
     Socket.CreateSocket("8080");
-    if(Socket.SetRecvTimeout(1000)==false){
-        cerr << "10 - fail to set server timeout."<<endl;
+    if (Socket.SetRecvTimeout(1000) == false)
+    {
+        cerr << "10 - fail to set server timeout." << endl;
         failed++;
     }
     Socket.CloseSocket();
 
-    cout<<endl;
+    cout << endl;
+    cout << endl;
+    cout << endl;
 
     // 11 - test timeout.
-    Socket.CreateSocket("www.google.com","80");
-    if(!Socket.SetRecvTimeout(1000000)){
-        cerr << "Failed to set timeout"<<endl;
+    Socket.CreateSocket("www.google.com", "80");
+    if (!Socket.SetRecvTimeout(1000000))
+    {
+        cerr << "Failed to set timeout" << endl;
         failed++;
     }
     char dummy[100];
     string sdummy;
-    if(Socket.BlockingRecv(dummy,100,sdummy,NULL)!=0){
+    if (Socket.BlockingRecv(dummy, 100, sdummy, NULL) != 0)
+    {
         failed++;
-        cerr << "Return should be 0 on timeout"<<endl;              
-    } else {
-        if(!Socket.DidTimeout()){
+        cerr << "Return should be 0 on timeout" << endl;
+    }
+    else
+    {
+        if (!Socket.DidTimeout())
+        {
             failed++;
-            cerr << "Timeout flag not set."<<endl;
+            cerr << "Timeout flag not set." << endl;
         }
+    }
+    cout << endl;
+    cout << endl;
+
+    // 12 - client input parsing.
+    bool res = true;
+    if (ParseCmd("put") != PUT)
+        res = false;
+    if (ParseCmd("ls") != LS)
+        res = false;
+    if (ParseCmd("get") != GET)
+        res = false;
+    if (ParseCmd("exit") != EXIT)
+        res = false;
+    if (ParseCmd("delete") != DELETE)
+        res = false;
+    if (ParseCmd("blah") != UNK)
+        res = false;
+    if (!res)
+    {
+        failed++;
+        cerr << "Parse Cmd error.";
+    }
+    cout << endl;
+    cout << endl;
+
+    // 13 - segment tracking.
+    SegmentTracker st;
+    while (1)
+    {
+        cout << "Segment tracker testing. Enter byte: ";
+        string input;
+        std::getline(std::cin, input);
+        if (input == "q")
+            break;
+        unsigned long byte = stoul(input);
+        cout << "Entered: " << byte << endl;
+        st.AddByte(byte);
+        st.PrintSegments();
+    }
+    cout << endl;
+    cout << endl;
+
+    // 14 - 3-way Handshake
+    if(!testProtocol()){
+        cout << "14 - Handshake failed"<<endl;
+        failed++;
     }
 
     // final results.
-    int total = 11;
+    int total = 13;
     cerr << (total - failed) << "/" << total << " tests passed." << endl;
 }
