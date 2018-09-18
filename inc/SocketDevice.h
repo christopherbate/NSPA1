@@ -25,7 +25,7 @@ For this project, we don't bother with an interface and instead just add some ba
 using namespace std;
 
 // Actual max buffer is a little less than 64k, but well use this
-#define PACKET_SIZE 512
+#define PACKET_SIZE 2048
 
 class SocketDevice
 {
@@ -70,6 +70,11 @@ class SocketDevice
         else
             res = send(m_fd, data, sl, 0);
 
+        if(res == -1){
+             cerr << "Blocking send : error " << strerror(errno) << endl;
+             return 0;
+        }
+
         if (res != sl)
         {
             cerr << "Failed/short send: " << res << "/" << length << endl;
@@ -93,7 +98,7 @@ class SocketDevice
         {           
             if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
-                cerr << "Timeout" << endl;   
+                //cerr << "Timeout" << endl;   
                 m_timeout = true;             
             } else {
                 cerr << "BlockingRecv: recv error " << strerror(errno) << endl;

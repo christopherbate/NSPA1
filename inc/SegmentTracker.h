@@ -102,14 +102,14 @@ class SegmentTracker
             return 0;
         }
 
-        return std::get<1>(m_segments[0]) - std::get<0>(m_segments[0]);
+        return std::get<1>(m_segments[0]) - std::get<0>(m_segments[0])+1;
     }
 
     void PrintSegments()
     {        
         for(auto it = m_segments.begin(); it != m_segments.end(); it++)
         {
-            std::cout << "(" << std::get<0>(*it) <<"," << std::get<1>(*it)<<"), ";
+            std::cout << "(" << std::dec<<std::get<0>(*it) <<"," << std::dec<<std::get<1>(*it)<<"), ";
         }
         std::cout << std::endl;
     }
@@ -117,6 +117,10 @@ class SegmentTracker
     void ClearSegments()
     {
         m_segments.clear();
+    }
+
+    std::tuple<uint32_t,uint32_t> GetFirstSegment(){
+        return m_segments[0];
     }
 
     uint32_t GetFirstGapIndex()

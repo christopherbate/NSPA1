@@ -2,17 +2,30 @@
 #include <thread>
 #include "../inc/SocketDevice.h"
 #include "CTBDevice.h"
-#include "client.h"
-#include "SegmentTracker.h"
+#include "Shared.h"
+#include "SendBuffer.h"
 
 using namespace std;
+
+string pk1 = "123456789101112131415";
+string pk2 = "GET test.bin";
+string pk3 = "HELLO WORLD";
 
 void serverFn(bool *cancel)
 {
     CTBDevice server;
     server.CreateDevice("8080");
     server.Listen("8080", *cancel);
-
+    char buffer[PACKET_SIZE];
+    std::this_thread::sleep_for(chrono::seconds(1));
+    server.UpdateRecv();
+    uint32_t res = 0;
+    do
+    {
+        res = server.RecvData(buffer, PACKET_SIZE);
+        if (res > 0)
+            std::cout << "Data: " + string(buffer, res) << " " << std::dec << res << endl;
+    } while (res > 0);
     server.DestroyDevice();
 }
 
@@ -23,15 +36,25 @@ bool testProtocol()
     bool cancel = false;
     std::thread serverThread(serverFn, &cancel);
     cout << "Launched server threads" << endl;
-    if (client.ActiveConnect("localhost", "8080",10))
+    if (client.ActiveConnect("localhost", "8080", 10))
     {
-        cout << "Connected" << endl;
+        cout << "Client Connected" << endl;
+        client.SendData(pk1.c_str(), pk1.length());
+        client.SendData(pk2.c_str(), pk2.length());
+        client.SendData(pk3.c_str(), pk3.length());
+        client.UpdateSend();
     }
     else
     {
         cout << "Failed" << endl;
         return false;
     }
+
+    this_thread::sleep_for(chrono::milliseconds(1000));
+    client.UpdateRecv(); // To Receive the acks
+    client.UpdateRecv(); // To Receive the acks
+    client.UpdateRecv(); // To Receive the acks
+    this_thread::sleep_for(chrono::milliseconds(5000));
     cancel = true;
     serverThread.join();
 
@@ -271,30 +294,112 @@ int main()
     cout << endl;
     cout << endl;
 
-    // 13 - segment tracking.
-    SegmentTracker st;
-    while (1)
-    {
-        cout << "Segment tracker testing. Enter byte: ";
-        string input;
-        std::getline(std::cin, input);
-        if (input == "q")
-            break;
-        unsigned long byte = stoul(input);
-        cout << "Entered: " << byte << endl;
-        st.AddByte(byte);
-        st.PrintSegments();
-    }
-    cout << endl;
-    cout << endl;
+    // 13 - update recv.
 
     // 14 - 3-way Handshake
-    if(!testProtocol()){
+    /*if(!testProtocol()){
         cout << "14 - Handshake failed"<<endl;
         failed++;
+    }*/
+
+    // 15 - Send Buffers
+    SendBuffer sb;
+    CTBDevice::Packet *next = NULL;
+    sb.Write(pk1.c_str(), pk1.length());
+    sb.Write(pk2.c_str(), pk2.length());
+    sb.Write(pk3.c_str(), pk3.length());
+    sb.Clean();
+    sb.Print();
+    next = sb.GetNextAvail();
+    if (next == NULL)
+    {
+        failed++;
+        cerr << "Should be a packet available to send." << endl;
+    }
+    else
+    {
+        client.PrintHeader(next->hdr);
     }
 
+    cout << endl;
+
+    // 16 - update with header (1)
+    CTBDevice::ProtocolHeader hdr;
+    hdr.flags = CTBDevice::ACK_MASK;
+    hdr.ackNum = 1;
+
+    // This shouldn't update anything.
+    sb.UpdateWithHeader(hdr);
+    if (sb.m_lastAckRecv != 0)
+    {
+        cerr << "Ack should not update" << endl;
+        failed++;
+    }
+    sb.Clean();
+    sb.Print();
+    next = sb.GetNextAvail();
+    if (next == NULL)
+    {
+        failed++;
+        cerr << "Should be a packet available to send." << endl;
+    }
+    else
+    {
+        client.PrintHeader(next->hdr);
+    }
+    cout << endl;
+
+    //17 - update with header (2)
+    // Update last ack, but not everything should stay
+    // "not sent"
+    hdr.ackNum = 2;
+    sb.UpdateWithHeader(hdr);
+    sb.Clean();
+    sb.Print();
+    next = sb.GetNextAvail();
+    if (next == NULL)
+    {
+        failed++;
+        cerr << "Should be a packet available to send." << endl;
+    }
+    else
+    {
+        client.PrintHeader(next->hdr);
+    }
+
+    cout << endl;
+
+    // 18 - mark as sent
+    // Should change first packet to sent, not ack'd.
+    next = sb.GetNextAvail();
+    sb.MarkSent(next->hdr, false);
+    sb.Print();
+    sb.Clean();
+    CTBDevice::Packet *next2 = sb.GetNextAvail();
+    if (next2 == NULL)
+    {
+        failed++;
+        cerr << "Should be a packet available to send." << endl;
+    }
+    else
+    {
+        client.PrintHeader(next->hdr);
+    }
+
+    // 19 - Ack and Clean
+    cout << endl;
+    hdr.flags = CTBDevice::ACK_MASK;
+    hdr.ackNum = next->hdr.seqNum+next->hdr.dataSize;
+    sb.UpdateWithHeader(hdr);
+    sb.Print();
+    sb.Clean();
+    cout << endl;
+    sb.Print();
+
+    // 19 - mark as acknowledged
+    // Should change first packet to sent, and ack'd
+
     // final results.
-    int total = 13;
+    int total = 15;
     cerr << (total - failed) << "/" << total << " tests passed." << endl;
 }
