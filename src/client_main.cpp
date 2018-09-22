@@ -13,48 +13,10 @@ void runClient(CTBDevice *client, string host, string port, bool *cancel)
         cout << "Client connected." << endl;
         while (!*cancel)
         {
-            client->UpdateSend();
-            client->UpdateRecv();           
+            client->Update();     
+            std::this_thread::sleep_for(chrono::milliseconds(10));
         }
     }
-}
-
-/*
-HandlePut
-Requires: filename (no paths / allowed), initialized CTBDevice
-Modifies: Opens and sends file over device.
-Returns: true on success, otherwise false.
-*/
-bool HandlePut(string filename, CTBDevice &client)
-{
-    string filepath = FILES_PATH_CLIENT + filename;
-    const uint32_t blockSize = 1024;
-    char buffer[blockSize];
-    cout << "Opening: " << filepath << endl;
-    ifstream infile;
-    infile.open(filepath);
-    if (!infile.is_open())
-    {
-        cerr << "File does not exist in files directory." << endl;
-        return false;
-    }
-    // Get the size of the file.
-    infile.seekg(0,ios::end);
-    unsigned long long fileSize = infile.tellg();
-    infile.seekg(0,ios::beg);
-
-    // Send the request to server.
-    string msg = "put " + filename + " " + std::to_string(fileSize);
-    cout <<"Sending : "<< msg << endl;
-    client.SendData((char *)msg.c_str(), msg.length());
-
-    while (!infile.eof())
-    {
-        infile.read(buffer, blockSize);
-        client.SendData(buffer, infile.gcount());
-    }    
-
-    return true;
 }
 
 int main(int argc, char **argv)
@@ -67,13 +29,12 @@ int main(int argc, char **argv)
 
     // Create our client device
     CTBDevice client;
-    if (!client.CreateDevice(argv[1], argv[2]))
+    if (!client.CreateDevice())
     {
         cerr << "Failed to create client device." << endl;
         return -1;
     }
-
-    unsigned long size = BLOCK_SIZE;
+    
     CmdType command;
     bool endLoop = false;
     std::thread clientThread(runClient, &client, argv[1], argv[2], &endLoop);
@@ -104,7 +65,7 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to put." << endl;
                 continue;
             }
-            HandlePut(inputTokens[1], client);
+            //HandlePut(inputTokens[1], client);
             break;
         case GET:
             if (inputTokens.size() < 2)
@@ -112,9 +73,10 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to get." << endl;
                 continue;
             }
+            //HandleGet(inputTokens[1],client);
             break;
-        case LS:
-            client.SendData("ls", 2);
+        case LS:            
+           //HandleLs(client);
             break;
         case DELETE:
             if (inputTokens.size() < 2)
@@ -122,6 +84,7 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to get." << endl;
                 continue;
             }
+            //HandleDelete(client);
             break;
         case EXIT:
             endLoop = true;
@@ -136,4 +99,42 @@ int main(int argc, char **argv)
     clientThread.join();
 
     return 0;
+}
+
+/*
+HandlePut
+Requires: filename (no paths / allowed), initialized CTBDevice
+Modifies: Opens and sends file over device.
+Returns: true on success, otherwise false.
+*/
+bool HandlePut(string filename, CTBDevice &client)
+{
+    string filepath = FILES_PATH_CLIENT + filename;
+    const uint32_t blockSize = 2048;
+    char buffer[blockSize];
+    cout << "Opening: " << filepath << endl;
+    ifstream infile;
+    infile.open(filepath);
+    if (!infile.is_open())
+    {
+        cerr << "File does not exist in files directory." << endl;
+        return false;
+    }
+    // Get the size of the file.
+    infile.seekg(0,ios::end);
+    unsigned long long fileSize = infile.tellg();
+    infile.seekg(0,ios::beg);
+
+    // Send the request to server.
+    string msg = "put " + filename + " " + std::to_string(fileSize);
+    cout <<"Sending : "<< msg << endl;
+    client.SendData((char *)msg.c_str(), msg.length());
+
+    while (!infile.eof())
+    {
+        infile.read(buffer, blockSize);
+        client.SendData(buffer, infile.gcount());
+    }    
+
+    return true;
 }

@@ -18,8 +18,8 @@ void runServer(CTBDevice *server, string port, bool *cancel)
     {
         while (!*cancel)
         {
-            server->UpdateSend();
-            server->UpdateRecv();            
+            server->Update();
+            std::this_thread::sleep_for(chrono::milliseconds(10));
         }
     }
 }
@@ -52,14 +52,14 @@ void HandleServerPut(std::vector<string> &tokens, CTBDevice &server)
                 out.write(buffer, size);
             total += size;
             loopCnt++;
-            if(loopCnt%10==0){
+            if (loopCnt % 100 == 0)
+            {
                 cout << "Transfer " << total << "/" << fileSize << endl;
             }
         }
     }
     cout << "Transfer complete " << total << "/" << fileSize << endl;
     cout << "Transfer took " << loopCnt << " packets." << endl;
-    cout << "Server window "<<server.m_advWindow<<endl;
 }
 
 int main(int argc, char **argv)
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     CTBDevice server;
     bool cancel = false;
 
-    if (!server.CreateDevice(argv[1]))
+    if (!server.CreateDevice())
     {
         cerr << "Error creating server." << endl;
         return -1;

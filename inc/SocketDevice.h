@@ -24,9 +24,6 @@ For this project, we don't bother with an interface and instead just add some ba
 
 using namespace std;
 
-// Actual max buffer is a little less than 64k, but well use this
-#define PACKET_SIZE 2048
-
 class SocketDevice
 {
   public:
@@ -37,85 +34,15 @@ class SocketDevice
 
     void CloseSocket();
 
-    bool SetRecvTimeout(unsigned long usec);
-    bool DidTimeout(){return m_timeout;}
+    bool SetRecvTimeout( uint64_t usec);
+    bool DidTimeout() { return m_timeout; }
+
     bool CreateSocket(string host, string port);
     bool CreateSocket(string port);
 
-    uint32_t BlockingSend(char *data, unsigned long length, struct sockaddr *remoteAddr = NULL)
-    {
-        if (m_fd < 0)
-        {
-            cerr << "Socket not open." << endl;
-            return 0;
-        }
-        if (length > PACKET_SIZE)
-        {
-            cerr << "Buffer too big, split up." << endl;
-            return 0;
-        }
-        if (m_type == PASSIVE && remoteAddr == NULL)
-        {            
-            remoteAddr = (struct sockaddr*)&m_remoteAddr;
-        }
+    uint32_t BlockingSend(const char *data, unsigned long length, struct sockaddr *remoteAddr = NULL);
 
-        //cout << "Sending: " << data << " of length " << length << endl;
-        ssize_t sl = length;
-        unsigned long res = 0;        
-
-        // If we are passive, we need to specify address. Otherwise, we saved it using "connect"
-        // although both are using datagram udp.
-        if (m_type == PASSIVE)
-            res = sendto(m_fd, data, sl, 0, remoteAddr, sizeof(struct sockaddr_storage));
-        else
-            res = send(m_fd, data, sl, 0);
-
-        if(res == -1){
-             cerr << "Blocking send : error " << strerror(errno) << endl;
-             return 0;
-        }
-
-        if (res != sl)
-        {
-            cerr << "Failed/short send: " << res << "/" << length << endl;
-            return res;
-        }
-        return res;
-    }
-    uint32_t BlockingRecv(char *buffer, unsigned long size, string &recvAddress, struct sockaddr *remoteAddr = NULL)
-    {
-        if (m_fd < 0)
-        {
-            cerr << "Socket not open." << endl;
-            return 0;
-        }
-        m_timeout = false;
-        struct sockaddr_storage recvAddr;
-        socklen_t recvAddrLen = sizeof(struct sockaddr_storage);
-        ssize_t res = recvfrom(m_fd, buffer, size, 0, (struct sockaddr *)&recvAddr, &recvAddrLen);
-
-        if (res == -1)
-        {           
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                //cerr << "Timeout" << endl;   
-                m_timeout = true;             
-            } else {
-                cerr << "BlockingRecv: recv error " << strerror(errno) << endl;
-            }
-            return 0;
-        }
-        char nameBuffer[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &recvAddr, nameBuffer, INET_ADDRSTRLEN);
-        recvAddress = string(nameBuffer);
-
-        if (remoteAddr){
-            memcpy(remoteAddr, &recvAddr, recvAddrLen);
-        }
-        memcpy(&m_remoteAddr,&recvAddr,recvAddrLen);
-
-        return res;
-    }
+    uint32_t BlockingRecv(char *buffer, unsigned long size, string &recvAddress, struct sockaddr *remoteAddr = NULL);
 
   private:
     enum SDType

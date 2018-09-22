@@ -4,20 +4,23 @@ Christopher Bate
 September 2018
 
 This is a further layer on top of SocketDevice (our abstract socket interface)
-Basically, it adds the extra layer of reliable transmission that UDP doesnt provide.
+Basically, it adds the extra layer of reliable transmission that UDP does not provide.
 */
 #ifndef CTB_DEVICE_H
 #define CTB_DEVICE_H
 
 #include "SocketDevice.h"
-#include "SegmentTracker.h"
 #include <vector>
-#include "SendBuffer.h"
-#include "RecvBuffer.h"
 #include <sstream>
 #include <deque>
 #include <mutex>
 #include <queue>
+
+// An arbitrary packet size for our "protocol"
+#define PACKET_SIZE 4096
+
+class SendBuffer;
+class RecvBuffer;
 
 class CTBDevice
 {
@@ -27,10 +30,8 @@ class CTBDevice
 
     void DestroyDevice();
 
-    /*for client devices*/
-    bool CreateDevice(string host, string port);
-    /*for server devices*/
-    bool CreateDevice(string port);
+    /* initialization */
+    bool CreateDevice();
 
     /*
         For reliably sending in-memory data.
@@ -100,31 +101,27 @@ class CTBDevice
     /*
         State variables
     */
-    enum CTBType
-    {
-        CLIENT,
-        SERVER
-    };
-    CTBType m_type;
     SocketDevice m_socket; // Underlying UDP Socket
     bool m_created;
     CtbState m_state;
 
-    SendBuffer m_sendBuffer;
-    RecvBuffer m_recvBuffer;
+    SendBuffer *m_sendBuffer;
+    RecvBuffer *m_recvBuffer;
 
 
     uint64_t m_packetsSent;
     uint64_t m_packetsRecv;
+    uint64_t m_ackRecv;
+    uint64_t m_ackSent;
 
     /*
         These are helper functions for resetting manipulating the indices
         and copying the received data round.
     */
     void SendPacket(Packet &packet);
-    bool RecvPacket(Packet &pktRecv, unsigned int usecTimeout);
+    bool RecvPacket(Packet &pktRecv, uint64_t usecTimeout);
 
-    void PrintHeader(ProtocolHeader &header)
+    static void PrintHeader(ProtocolHeader &header)
     {
         cout << "Seq " << std::dec << header.seqNum << endl;
         cout << "Ack " << std::dec << header.ackNum << endl;

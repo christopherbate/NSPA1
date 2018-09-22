@@ -114,7 +114,7 @@ bool SocketDevice::CreateSocket(string host, string port)
             // But if needed to use sendto, we could use these saved parameters.
             m_remoteHost = host;
             m_remotePort = port;
-            memcpy(&m_remoteAddr, aiIter->ai_addr, sizeof(aiIter->ai_addr));
+            memcpy(&m_remoteAddr, aiIter->ai_addr, sizeof(*aiIter->ai_addr));
         }
         break;
     }
@@ -177,7 +177,7 @@ bool SocketDevice::CreateSocket(string port)
     if (rc != 0)
     {
         cerr << "SocketDevice : CreateSocket : getaddrinfo : " << rc << endl;
-        cerr << "Err: " << strerror(errno)<<endl;
+        cerr << "Err: " << strerror(errno) << endl;
         return false;
     }
 
@@ -187,9 +187,9 @@ bool SocketDevice::CreateSocket(string port)
     {
 
         char nameBuffer[INET_ADDRSTRLEN];
-        inet_ntop(aiIter->ai_family, aiIter->ai_addr, nameBuffer, INET_ADDRSTRLEN);        
+        inet_ntop(aiIter->ai_family, aiIter->ai_addr, nameBuffer, INET_ADDRSTRLEN);
         cout << "Attempting to create socket for: " << (nameBuffer != NULL ? nameBuffer : "") << endl;
-     
+
         // Create the socket.
         m_fd = socket(aiIter->ai_family, aiIter->ai_socktype, aiIter->ai_protocol);
         if (m_fd == -1)
@@ -225,7 +225,13 @@ bool SocketDevice::CreateSocket(string port)
     return true;
 }
 
-bool SocketDevice::SetRecvTimeout(unsigned long usec)
+/*
+SetRecvTimeout
+
+Sets the amount of time the socket will wait on recv until returning if no data
+
+*/
+bool SocketDevice::SetRecvTimeout(uint64_t usec)
 {
     if (m_fd == -1)
         return false;
@@ -240,4 +246,89 @@ bool SocketDevice::SetRecvTimeout(unsigned long usec)
     }
 
     return true;
+}
+
+/*
+BlockingSend
+
+Sends data at at data of size length to remoteAddr (if specified, otherwise to already save remote
+*/
+uint32_t SocketDevice::BlockingSend(const char *data, unsigned long length, struct sockaddr *remoteAddr)
+{
+    if (m_fd < 0)
+    {
+        cerr << "Socket not open." << endl;
+        return 0;
+    }
+    if (m_type == PASSIVE && remoteAddr == NULL)
+    {
+        remoteAddr = (struct sockaddr *)&m_remoteAddr;
+    }
+
+    //cout << "Sending: " << data << " of length " << length << endl;
+    ssize_t sl = length;
+    ssize_t res = 0;
+
+    // If we are passive, we need to specify address. Otherwise, we saved it using "connect"
+    // although both are using datagram udp.
+    if (m_type == PASSIVE)
+        res = sendto(m_fd, data, sl, 0, remoteAddr, sizeof(struct sockaddr_storage));
+    else
+        res = send(m_fd, data, sl, 0);
+
+    if (res == -1)
+    {
+        cerr << "Blocking send : error " << strerror(errno) << endl;
+        return 0;
+    }
+
+    if (res != sl)
+    {
+        cerr << "Failed/short send: " << res << "/" << length << endl;
+        return res;
+    }
+    return res;
+}
+
+/*
+    BlockingRecv
+
+    Receives data into buffer of at most size 
+
+    Saves receiving address into remoteAddr if not null
+
+    Receive from recvAddress 
+*/
+uint32_t SocketDevice::BlockingRecv(char *buffer, unsigned long size, string &recvAddress, struct sockaddr *remoteAddr)
+{
+    if (m_fd < 0)
+    {
+        cerr << "Socket not open." << endl;
+        return 0;
+    }
+    m_timeout = false;
+    struct sockaddr_storage recvAddr;
+    socklen_t recvAddrLen = sizeof(struct sockaddr_storage);
+    ssize_t res = recvfrom(m_fd, buffer, size, 0, (struct sockaddr *)&recvAddr, &recvAddrLen);
+
+    if (res == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            //cerr << "Timeout" << endl;
+            m_timeout = true;
+        }
+        return 0;
+    }
+    char nameBuffer[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &recvAddr, nameBuffer, INET_ADDRSTRLEN);
+    recvAddress = string(nameBuffer);
+
+    if (remoteAddr)
+    {
+        memcpy(remoteAddr, &recvAddr, recvAddrLen);
+    }
+    memcpy(&m_remoteAddr, &recvAddr, recvAddrLen);
+
+    return res;
 }
