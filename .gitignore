@@ -1,3 +1,5 @@
 *.o
-/bin/*
+/bin/client
+/bin/server
+/bin/tests
 .vscode/
