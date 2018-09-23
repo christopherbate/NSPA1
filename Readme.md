@@ -15,6 +15,8 @@ my initials.)
 
 Please ignore the files_server and files_client directories. Those are for automated unit tests run by the bin/tests executable.
 
+PLEASE NOTE: When request a GET or PUT, the program will print "Received: [filename] [size]". This is just the header. For large files, there will always be statements like "x/total bytes received" and "Transfer complete, took x milliseconds" to signal end of transfer.
+
 ## Building the Source
 
 Both a Makefile and Dockerfile are provided for compilation. Simply run "make" in the

@@ -67,7 +67,8 @@ bool RecvBuffer::InsertPacket(CTBDevice::Packet *packet)
             }
             else if (seq == nextPak->hdr.seqNum)
             {
-                cerr << "Repeat packet, ignoring" << endl;
+                // Drop the repeat packet.
+                //cerr << "Repeat packet, ignoring" << endl;
                 m_lock.unlock();
                 return false;
             }

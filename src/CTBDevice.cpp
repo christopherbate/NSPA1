@@ -310,7 +310,7 @@ void CTBDevice::UpdateSend(bool printDebug)
             uint32_t elapsed = chrono::duration_cast<chrono::milliseconds>(
                                    chrono::steady_clock::now() - lpTimer)
                                    .count();
-            if (m_recvBuffer->GetNextAck() != lastAck || elapsed > 1000)
+            if (m_recvBuffer->GetNextAck() != lastAck || elapsed > 30)
             {
                 //cout << "Sender sending keep-alive signal." << endl;
                 Packet ack;
