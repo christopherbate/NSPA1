@@ -1,5 +1,5 @@
 #include "Shared.h"
-
+#include "Request.h"
 #include <thread>
 
 using namespace std;
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     bool endLoop = false;
     std::thread clientThread(runClient, &client, argv[1], argv[2], &endLoop);
     while (!endLoop)
-    {        
+    {
         // Query the user
         string input;
         cout << helpMsg << endl;
@@ -57,7 +57,8 @@ int main(int argc, char **argv)
 
         // Parse the command
         command = ParseCmd(inputTokens[0]);
-
+        SaveResponseOpt opt;
+        std::vector<string> responseHeaderTokens;
         switch (command)
         {
         case PUT:
@@ -66,7 +67,8 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to put." << endl;
                 continue;
             }
-            SendFile(client, FILES_PATH_CLIENT, inputTokens[1]);            
+            SendFile(client, FILES_PATH_CLIENT, inputTokens[1], responseHeaderTokens);
+            cout << responseHeaderTokens[0]<<endl;
             break;
         case GET:
             if (inputTokens.size() < 2)
@@ -74,10 +76,21 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to get." << endl;
                 continue;
             }
-            //HandleGet(inputTokens[1],client);
+            Request(client, "get " + inputTokens[1], responseHeaderTokens);
+            opt.filename = inputTokens[1];
+            opt.prefix = "./";
+            opt.printDebug = true;
+            opt.size = stoull(responseHeaderTokens[1]);
+            opt.saveFile = true;
+            SaveResponseBody(client, opt);
             break;
         case LS:
-            //HandleLs(client);
+            Request(client, "ls", responseHeaderTokens);
+            opt.printDebug = true;
+            opt.size = stoull(responseHeaderTokens[1]);
+            opt.saveFile = false;
+            SaveResponseBody(client, opt);
+            cout << opt.result << endl;
             break;
         case DELETE:
             if (inputTokens.size() < 2)
@@ -85,7 +98,8 @@ int main(int argc, char **argv)
                 cerr << "Must specify a file to get." << endl;
                 continue;
             }
-            //HandleDelete(client);
+            Request(client, "delete "+inputTokens[1], responseHeaderTokens);
+            cout<< responseHeaderTokens[0] <<endl;
             break;
         case EXIT:
             endLoop = true;

@@ -20,4 +20,6 @@ bool TestRecvBuffer();
 
 bool TestHelpers();
 
+bool TestLS();
+
 #endif

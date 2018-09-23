@@ -1,5 +1,7 @@
 #include <thread>
 
+#include "Request.h"
+#include "Response.h"
 #include "RecvBuffer.h"
 #include "SendBuffer.h"
 #include "BasicTests.h"
@@ -8,6 +10,17 @@
 #include "Shared.h"
 
 using namespace std;
+
+bool TestLS()
+{
+    string test = ReadLS();
+    if (test.length() == 0)
+    {
+        throw runtime_error("LS failed");
+    }
+    cout << test << endl;
+    return true;
+}
 
 bool TestSendFile()
 {
@@ -28,7 +41,7 @@ bool TestSendFile()
     };
 
     auto clientFn = [&cancel, &client]() {
-        cout <<"Connecting"<<endl;
+        cout << "Connecting" << endl;
         if (client.ActiveConnect("localhost", "8080", 1000))
         {
             while (!cancel)
@@ -48,25 +61,86 @@ bool TestSendFile()
             size = s.RecvData(buffer, 256);
             if (size > 0)
             {
-                std::vector<string> tokens = TokenizeInput(string(buffer, size));
-                RecvFile(s, FILES_PATH_SERVER, tokens[1], stoull(tokens[2]));
+                RequestedDetails req;
+                ResponseOpt opt;
+                if (ParseRequest(s, buffer, size, req))
+                {
+                    if (req.type == GET)
+                    {
+                        opt.isFile = true;
+                        opt.filename = req.filename;
+                        opt.prefix = "./files_server/";
+                        SendResponse(s, opt);
+                    }
+                    else if (req.type == PUT)
+                    {
+                        if (RecvFile(s, "./files_server/", req.filename, req.bodySize))
+                        {
+                            opt.header = "ok";
+                        }
+                        else
+                        {
+                            opt.header = "fail";
+                        }
+                        opt.isFile = false;
+                        opt.msg = "";
+                        SendResponse(s, opt);
+                    }
+                    else if (req.type == LS)
+                    {
+                        string lsResult = ReadLS();
+                        opt.isFile = false;
+                        opt.msg = lsResult;
+                        opt.header = "ok " + to_string(lsResult.length());
+                        SendResponse(s, opt);
+                    }
+                    else if (req.type == DELETE)
+                    {
+                        string cmd = "rm ./" + req.filename;
+                        string rmRes;
+                        if (ExecuteCMD(cmd, rmRes))
+                        {
+                            opt.isFile = false;
+                            opt.header = "ok";
+                            opt.msg = "";
+                            SendResponse(s, opt);
+                        }
+                        else
+                        {
+                            opt.header = "fail";
+                            opt.isFile = false;
+                            opt.msg = "";
+                            SendResponse(s, opt);
+                        }
+                    }
+                }
+                else
+                {
+                    // Send reset
+                }
             }
         }
     };
 
-    cout << "Launching server thread"<<endl;
-    std::thread listenThread(server);    
-    cout<<"Launching client thread"<<endl;
-    
+    cout << "Launching server thread" << endl;
+    std::thread listenThread(server);
+    cout << "Launching client thread" << endl;
+
     std::thread clientThread(clientFn);
 
     std::this_thread::sleep_for(chrono::milliseconds(1000));
 
     // Recv file
-    cout <<"Launching server recv thread"<<endl;
+    cout << "Launching server recv thread" << endl;
     std::thread serverThread(serverCn);
-    
-    SendFile(client, FILES_PATH_CLIENT, "100mb.bin");
+
+    std::vector<string> responseTokens;
+    string filename = "test0.txt";
+    string prefix = "./files_client/";
+
+    SendFile(client, prefix,filename,responseTokens);
+
+    cout<<responseTokens[0]<<endl;
 
     std::this_thread::sleep_for(chrono::milliseconds(1000));
     cout << "Done" << endl;
@@ -458,7 +532,7 @@ bool TestSendBuffer()
         CTBDevice::Packet *next2 = sb.GetNextAvail();
         if (next2 == NULL)
         {
-            throw runtime_error("Shoudn't be null");
+            throw runtime_error("Shouldn't be null");
         }
         sb.MarkSent(next2->hdr);
         sb.MarkSent(next->hdr); // Try to remark send, should fail.

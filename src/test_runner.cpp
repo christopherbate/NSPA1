@@ -80,6 +80,7 @@ int main()
     //runner.AddTest("Test Update Func",TestUpdateSend);
     //runner.AddTest("Test update recv",TestUpdateRecv);
     runner.AddTest("Test send file", TestSendFile);
+    runner.AddTest("Test ls",TestLS);
     runner.Run();
 
     return 0;
