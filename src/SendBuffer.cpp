@@ -1,15 +1,10 @@
 #include "SendBuffer.h"
 
+#define SB_SIZE 512000
+
 SendBuffer::SendBuffer()
 {
-    m_maxSize = 512000;
-    m_lastAckRecv = 0;
-    m_lastSeqSent = 0;
-    m_nextSeqToSend = 1;
-    m_currSeqNum = 1;
-    m_totalSize = 0;
-    m_effWindow = 512000;
-    m_sizeInFlight = 0;
+    clear();
 }
 
 SendBuffer::~SendBuffer()
@@ -57,12 +52,6 @@ void SendBuffer::UpdateWithHeader(CTBDevice::ProtocolHeader &header)
                     m_nextSeqToSend = header.ackNum;
                 }
             }
-            else
-            {
-                // Update which one we've received.
-                last = header.ackNum;
-                sameCounter = 0;
-            }
         }
     }
 
@@ -76,14 +65,14 @@ void SendBuffer::UpdateWithHeader(CTBDevice::ProtocolHeader &header)
 void SendBuffer::clear()
 {
     m_buffer.clear();
-    m_maxSize = 512000;
+    m_maxSize = SB_SIZE;
     m_lastAckRecv = 0;
     m_lastSeqSent = 0;
     m_nextSeqToSend = 1;
     m_currSeqNum = 1;
     m_sizeInFlight = 0;
     m_totalSize = 0;
-    m_effWindow = 512000;
+    m_effWindow = m_maxSize;
 }
 
 void SendBuffer::Clean()
@@ -198,13 +187,19 @@ uint32_t SendBuffer::Write(const char *data, uint32_t size)
     {
         //busy wait
     }
+    if(size==0){
+        throw runtime_error("You can't send zero-bytes.");
+    }
     m_lock.lock();
 
     CTBDevice::Packet pkt;
     pkt.hdr.seqNum = m_currSeqNum;
     pkt.hdr.ackNum = 0;
     pkt.hdr.flags = 0;
+
+    // Need to adjust this.
     pkt.hdr.advWindow = PACKET_SIZE;
+
     pkt.hdr.dataSize = size;
     pkt.data.clear();
     if (size > 0)

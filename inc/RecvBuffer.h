@@ -36,6 +36,7 @@ class RecvBuffer
     std::mutex m_lock;
 
     void Print();
+
 };
 
 #endif

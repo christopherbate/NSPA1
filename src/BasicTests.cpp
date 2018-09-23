@@ -9,6 +9,80 @@
 
 using namespace std;
 
+bool TestSendFile()
+{
+    CTBDevice client;
+    client.CreateDevice();
+    CTBDevice s;
+    s.CreateDevice();
+    bool cancel = false;
+
+    auto server = [&cancel, &s]() {
+        s.Listen("8080", cancel);
+
+        while (!cancel)
+        {
+            //this_thread::sleep_for(chrono::milliseconds(10));
+            s.Update(false);
+        }
+    };
+
+    auto clientFn = [&cancel, &client]() {
+        cout <<"Connecting"<<endl;
+        if (client.ActiveConnect("localhost", "8080", 1000))
+        {
+            while (!cancel)
+            {
+                //this_thread::sleep_for(chrono::milliseconds(10));
+                client.Update(true);
+            }
+        }
+    };
+
+    auto serverCn = [&s, &cancel]() {
+        while (!cancel)
+        {
+
+            char buffer[256];
+            uint32_t size;
+            size = s.RecvData(buffer, 256);
+            if (size > 0)
+            {
+                std::vector<string> tokens = TokenizeInput(string(buffer, size));
+                RecvFile(s, FILES_PATH_SERVER, tokens[1], stoull(tokens[2]));
+            }
+        }
+    };
+
+    cout << "Launching server thread"<<endl;
+    std::thread listenThread(server);    
+    cout<<"Launching client thread"<<endl;
+    
+    std::thread clientThread(clientFn);
+
+    std::this_thread::sleep_for(chrono::milliseconds(1000));
+
+    // Recv file
+    cout <<"Launching server recv thread"<<endl;
+    std::thread serverThread(serverCn);
+    
+    SendFile(client, FILES_PATH_CLIENT, "100mb.bin");
+
+    std::this_thread::sleep_for(chrono::milliseconds(1000));
+    cout << "Done" << endl;
+
+    s.Print();
+
+    client.Print();
+
+    cancel = true;
+    serverThread.join();
+    clientThread.join();
+    listenThread.join();
+
+    return true;
+}
+
 bool TestSocketCreation()
 {
     SocketDevice sock;
@@ -128,7 +202,7 @@ bool TestCTBDevice()
     return true;
 }
 
-bool TestCTBDeviceData()
+bool TestCTBDeviceHandshake()
 {
     CTBDevice client;
     if (!client.CreateDevice())
@@ -136,9 +210,10 @@ bool TestCTBDeviceData()
         throw runtime_error("Failed to create ctb device.");
     }
 
-    auto server = []() {
+    bool cancel = false;
+
+    auto server = [&cancel]() {
         CTBDevice s;
-        bool cancel;
         if (!s.CreateDevice())
         {
             throw runtime_error("Failed to server");
@@ -153,6 +228,168 @@ bool TestCTBDeviceData()
     {
         throw runtime_error("Could not connect");
     }
+
+    listenThread.join();
+
+    return true;
+}
+
+bool TestCTBDeviceData()
+{
+    CTBDevice client;
+    if (!client.CreateDevice())
+    {
+        throw runtime_error("Failed to create ctb device.");
+    }
+
+    bool cancel = false;
+
+    auto server = [&cancel]() {
+        CTBDevice s;
+        if (!s.CreateDevice())
+        {
+            throw runtime_error("Failed to server");
+        }
+        s.Listen("8080", cancel);
+        char buffer[256];
+        while (!cancel)
+        {
+            this_thread::sleep_for(chrono::milliseconds(10));
+            s.Update();
+            uint32_t size = s.RecvData(buffer, 256);
+            if (size > 0)
+            {
+                buffer[size] = '\0';
+                cout << buffer << endl;
+            }
+        }
+    };
+
+    std::thread listenThread(server);
+
+    // connect.
+    if (!client.ActiveConnect("localhost", "8080", 1000))
+    {
+        throw runtime_error("Could not connect");
+    }
+
+    for (auto i = 0; i < 10; i++)
+    {
+        string data = "Msg#" + std::to_string(i);
+        client.SendData(data.c_str(), data.length());
+    }
+    client.Update();
+
+    this_thread::sleep_for(chrono::milliseconds(1000));
+    cancel = true;
+
+    listenThread.join();
+
+    return true;
+}
+
+bool TestUpdateSend()
+{
+    CTBDevice client;
+    if (!client.CreateDevice())
+    {
+        throw runtime_error("Failed to create ctb device.");
+    }
+
+    bool cancel = false;
+
+    auto server = [&cancel]() {
+        CTBDevice s;
+        if (!s.CreateDevice())
+        {
+            throw runtime_error("Failed to server");
+        }
+        s.Listen("8080", cancel);
+        char buffer[256];
+        while (!cancel)
+        {
+            this_thread::sleep_for(chrono::milliseconds(10));
+            s.Update(true);
+            uint32_t size = s.RecvData(buffer, 256);
+            if (size > 0)
+            {
+                buffer[size] = '\0';
+                cout << buffer << endl;
+            }
+        }
+    };
+
+    std::thread listenThread(server);
+
+    // connect.
+    if (!client.ActiveConnect("localhost", "8080", 5000))
+    {
+        throw runtime_error("Could not connect");
+    }
+
+    for (auto i = 0; i < 10; i++)
+    {
+        string data = "Msg#" + std::to_string(i);
+        client.SendData(data.c_str(), data.length());
+    }
+    client.Update(false);
+
+    this_thread::sleep_for(chrono::milliseconds(5000));
+    cancel = true;
+
+    listenThread.join();
+
+    return true;
+}
+
+bool TestUpdateRecv()
+{
+    CTBDevice client;
+    if (!client.CreateDevice())
+    {
+        throw runtime_error("Failed to create ctb device.");
+    }
+
+    bool cancel = false;
+
+    auto server = [&cancel]() {
+        CTBDevice s;
+        if (!s.CreateDevice())
+        {
+            throw runtime_error("Failed to server");
+        }
+        s.Listen("8080", cancel);
+        char buffer[256];
+        while (!cancel)
+        {
+            this_thread::sleep_for(chrono::milliseconds(10));
+            s.Update(false);
+            uint32_t size = s.RecvData(buffer, 256);
+            if (size > 0)
+            {
+                buffer[size] = '\0';
+                //cout << buffer << endl;
+            }
+        }
+    };
+
+    std::thread listenThread(server);
+
+    // connect.
+    if (!client.ActiveConnect("localhost", "8080", 5000))
+    {
+        throw runtime_error("Could not connect");
+    }
+
+    for (auto i = 0; i < 10; i++)
+    {
+        string data = "Msg#" + std::to_string(i);
+        client.SendData(data.c_str(), data.length());
+    }
+    client.Update(true);
+
+    this_thread::sleep_for(chrono::milliseconds(5000));
+    cancel = true;
 
     listenThread.join();
 
@@ -181,64 +418,6 @@ bool TestHelpers()
     }
 
     return true;
-}
-
-void ServerThread(CTBDevice *device, bool *cancel)
-{
-    if (device->Listen("8080", *cancel))
-    {
-        cout << "Server connected" << endl;
-        while (!(*cancel))
-        {
-            device->Update();
-            char buffer[PACKET_SIZE];
-            uint32_t size;
-            size = device->m_recvBuffer->Read(buffer, PACKET_SIZE);
-            if (size > 0)
-            {
-                cout << "Recv: " << string(buffer, size) << endl;
-            }
-        }
-        cout << "Joining." << endl;
-    }
-}
-
-void FinalTests()
-{
-    string pk1 = "123456789101112131415";
-    string pk2 = "GET test.bin";
-    string pk3 = "HELLO WORLD";
-    CTBDevice client;
-    CTBDevice server;
-
-    server.CreateDevice();
-
-    client.CreateDevice();
-
-    bool cancel = false;
-
-    std::thread t1(ServerThread, &server, &cancel);
-
-    if (client.ActiveConnect("localhost", "8080", 1000))
-    {
-        cout << "Client connected." << endl;
-        if (client.SendData(pk1.c_str(), pk1.length()))
-        {
-            client.SendData(pk2.c_str(), pk2.length());
-            client.SendData(pk3.c_str(), pk3.length());
-            cout << "Sent data." << endl;
-        }
-        cout << "Client updating" << endl;
-        client.Update();
-        client.Update();
-        client.Update();
-        client.Update();
-    }
-
-    std::this_thread::sleep_for(chrono::seconds(1));
-    cancel = true;
-    cout << "Ending" << endl;
-    t1.join();
 }
 
 bool TestSendBuffer()
@@ -376,12 +555,14 @@ bool TestSendBuffer()
         ack.hdr.ackNum = 45;
         sb.UpdateWithHeader(ack.hdr);
 
-        if(sb.GetInFlightBytes()!=0){
+        if (sb.GetInFlightBytes() != 0)
+        {
             throw runtime_error("Should have zero inflight bytes");
         }
 
         sb.Clean();
-        if(sb.m_buffer.size()!=0){
+        if (sb.m_buffer.size() != 0)
+        {
             throw runtime_error("should have empty buffer");
         }
 
@@ -392,7 +573,132 @@ bool TestSendBuffer()
 }
 
 bool TestRecvBuffer()
-{   
+{
     RecvBuffer rb;
+    rb.clear();
+    string pk1 = "123456789101112131415";
+    string pk2 = "GET test.bin";
+    string pk3 = "HELLO WORLD";
+
+    auto packetGen = [](uint32_t seqNum, string data) {
+        CTBDevice::Packet *pack = new CTBDevice::Packet;
+        pack->hdr.seqNum = seqNum;
+        pack->hdr.dataSize = data.length();
+        pack->data.insert(pack->data.end(), data.c_str(), data.c_str() + data.length());
+        return pack;
+    };
+
+    if (rb.GetNextAck() != 1)
+    {
+        throw runtime_error("Next ack default should be 1");
+    }
+
+    CTBDevice::Packet *p1 = packetGen(1, pk1);
+    CTBDevice::Packet *p2 = packetGen(22, pk2);
+    CTBDevice::Packet *p3 = packetGen(34, pk3);
+
+    rb.InsertPacket(p1);
+
+    if (rb.m_buffer.size() != 1)
+        throw runtime_error("Size should be 1");
+    if (rb.m_totalSize != pk1.length())
+        throw runtime_error("Total size incorrect");
+
+    if (rb.m_faultCount != 0)
+    {
+        throw runtime_error("OOO Faults should be 0");
+    }
+
+    rb.Print();
+
+    if (rb.GetNextAck() != 22)
+    {
+        throw runtime_error("Get nextAck should get 22");
+    }
+
+    if (rb.GetWindow() != rb.m_maxSize - pk1.length())
+    {
+        throw runtime_error("Incorrect window reproted");
+    }
+
+    rb.InsertPacket(p3);
+
+    if (rb.m_buffer.size() != 2)
+    {
+        throw runtime_error("Incorrect size");
+    }
+
+    if (rb.m_faultCount != 1)
+    {
+        throw runtime_error("Fault count should be 1");
+    }
+
+    if (rb.GetNextAck() != 22)
+    {
+        throw runtime_error("Next ack should not have been adjusted.");
+    }
+
+    uint32_t res = rb.Read(NULL, 0);
+
+    if (res != 0)
+    {
+        throw runtime_error("Shouldnt be able to read with null buffer");
+    }
+
+    char buffer[256];
+    res = rb.Read(buffer, 256);
+    if (res != pk1.length())
+    {
+        throw runtime_error("Incorrect read length");
+    }
+
+    res = rb.Read(buffer, 256);
+    if (res != 0)
+    {
+        throw runtime_error("There shouldn't be data available");
+    }
+
+    rb.InsertPacket(p2);
+
+    if (rb.InsertPacket(p2) != false)
+    {
+        throw runtime_error("Shouldn't be able to insert repeat packet");
+    }
+
+    if (rb.m_faultCount != 1)
+    {
+        throw runtime_error("Fault count should not be adjusted");
+    }
+
+    if (rb.GetNextAck() != 45)
+    {
+        throw runtime_error("Incorrect next ack");
+    }
+
+    res = rb.Read(buffer, 256);
+    if (res != pk2.length())
+    {
+        throw runtime_error("Should get pk2");
+    }
+    res = rb.Read(buffer, 256);
+    if (res != pk3.length())
+    {
+        throw runtime_error("Should get pk3");
+    }
+
+    if (rb.GetWindow() != rb.m_maxSize)
+    {
+        throw runtime_error("Should have full window");
+    }
+
+    auto pk4 = packetGen(1, pk1);
+
+    if (rb.InsertPacket(pk4) != false)
+    {
+        throw runtime_error("Shouldn't be able to insert old packet");
+    }
+
+    rb.Print();
+
     return true;
 }

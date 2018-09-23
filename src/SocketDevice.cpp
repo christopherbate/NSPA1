@@ -91,7 +91,7 @@ bool SocketDevice::CreateSocket(string host, string port)
     {
         char nameBuffer[INET_ADDRSTRLEN];
         inet_ntop(aiIter->ai_family, aiIter->ai_addr, nameBuffer, INET_ADDRSTRLEN);
-        cout << "Attempting to create UDP socket with cached target: " << (nameBuffer != NULL ? nameBuffer : "") << " " << resList->ai_canonname << endl;
+        //cout << "Attempting to create UDP socket with cached target: " << (nameBuffer != NULL ? nameBuffer : "") << " " << resList->ai_canonname << endl;
         m_fd = socket(aiIter->ai_family, aiIter->ai_socktype, aiIter->ai_protocol);
 
         if (m_fd == -1)
@@ -130,7 +130,7 @@ bool SocketDevice::CreateSocket(string host, string port)
         return false;
     }
 
-    cout << "UDP Socket established." << endl;
+    //cout << "UDP Socket established." << endl;
 
     return true;
 }
@@ -188,7 +188,7 @@ bool SocketDevice::CreateSocket(string port)
 
         char nameBuffer[INET_ADDRSTRLEN];
         inet_ntop(aiIter->ai_family, aiIter->ai_addr, nameBuffer, INET_ADDRSTRLEN);
-        cout << "Attempting to create socket for: " << (nameBuffer != NULL ? nameBuffer : "") << endl;
+        //cout << "Attempting to create socket for: " << (nameBuffer != NULL ? nameBuffer : "") << endl;
 
         // Create the socket.
         m_fd = socket(aiIter->ai_family, aiIter->ai_socktype, aiIter->ai_protocol);
@@ -220,7 +220,7 @@ bool SocketDevice::CreateSocket(string port)
         return false;
     }
 
-    cout << "UDP Socket successfully bound to port " << port << endl;
+    //cout << "UDP Socket successfully bound to port " << port << endl;
 
     return true;
 }

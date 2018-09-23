@@ -44,8 +44,12 @@ class CTBDevice
     */
     bool ActiveConnect(string host, string port, uint32_t maxRetry);
     bool Listen(string port, bool &cancel);
-    bool Update();
-    
+
+    void UpdateSend(bool printDebug = false);
+    void UpdateRecv();
+
+    bool Update(bool printDebug = false);
+
     // States  of the protocol, straight out of the TCP diagram from the book.
     enum CtbState
     {
@@ -108,7 +112,6 @@ class CTBDevice
     SendBuffer *m_sendBuffer;
     RecvBuffer *m_recvBuffer;
 
-
     uint64_t m_packetsSent;
     uint64_t m_packetsRecv;
     uint64_t m_ackRecv;
@@ -128,6 +131,8 @@ class CTBDevice
         cout << "Flags " << std::hex << header.flags << endl;
         cout << "DataSize " << std::dec << header.dataSize << endl;
     }
+
+    void Print();
 };
 
 #endif

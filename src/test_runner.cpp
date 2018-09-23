@@ -73,66 +73,14 @@ int main()
     runner.AddTest("Socket timeout", TestTimeout);
     runner.AddTest("Test CTBDevice creation", TestCTBDevice);
     runner.AddTest("Parse Cmd function", TestHelpers);
-    runner.AddTest("Test handshake", TestCTBDeviceData);
+    runner.AddTest("Test handshake", TestCTBDeviceHandshake);
     runner.AddTest("Test send buffer",TestSendBuffer);
-
+    runner.AddTest("Test recv buffer.",TestRecvBuffer);
+    runner.AddTest("Test data sending with CTB Protocol",TestCTBDeviceData);
+    //runner.AddTest("Test Update Func",TestUpdateSend);
+    //runner.AddTest("Test update recv",TestUpdateRecv);
+    runner.AddTest("Test send file", TestSendFile);
     runner.Run();
 
-    /*
-    // 20 - RecvBuffer
-    RecvBuffer rb;
-    cout << "Recv buffer testing." << endl;
-    cout << "Current send buffer: " << endl;
-    sb.Print();
-    next = sb.GetNextAvail();
-    sb.MarkSent(next->hdr, false);
-    next2 = sb.GetNextAvail();
-    sb.MarkSent(next2->hdr, false);
-    sb.Print();
-
-    cout << "Recv buffer:" << endl;
-
-    rb.InsertPacket(next);
-    rb.InsertPacket(next2);
-    rb.Print();
-
-    rb.clear();
-    rb.InsertPacket(next2);
-    rb.InsertPacket(next);
-    rb.Print();
-
-    cout << endl;
-
-    cout << "Next ack: " << rb.GetNextAck();
-
-    cout << endl
-         << endl;
-
-    CTBDevice::Packet *finPkt = new CTBDevice::Packet;
-    finPkt->hdr.seqNum = 1;
-    finPkt->hdr.dataSize = pk1.length();
-    finPkt->data = std::vector<char>(pk1.begin(), pk1.end());
-
-    rb.InsertPacket(finPkt);
-
-    rb.Print();
-
-    char buffer[PACKET_SIZE];
-    uint32_t resl = rb.Read(buffer, PACKET_SIZE);
-    cout << "Read result: " << string(buffer, resl) << endl;
-
-    rb.Print();
-
-    cout << endl
-         << endl;
-
-    FinalTests();
-
-    cout << endl
-         << endl;
-
-    // final results.
-    int total = 15;
-    cerr << (total - failed) << "/" << total << " tests passed." << endl;
-    */
+    return 0;
 }

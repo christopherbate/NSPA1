@@ -2,11 +2,14 @@
 #include <unistd.h>
 #include "CTBDevice.h"
 using namespace std;
+
+#define RB_SIZE 512000
+
 RecvBuffer::RecvBuffer()
 {
     m_nextExpSeq = 1;
     m_totalSize = 0;
-    m_maxSize = 512000;
+    m_maxSize = RB_SIZE;
 }
 
 RecvBuffer::~RecvBuffer()
@@ -22,7 +25,7 @@ void RecvBuffer::clear()
     m_nextExpSeq = 1;
     m_totalSize = 0;
     m_faultCount = 0;
-    m_maxSize = 512000;
+    m_maxSize = RB_SIZE;
 }
 
 void RecvBuffer::AdjustExpSeq()
@@ -33,7 +36,6 @@ void RecvBuffer::AdjustExpSeq()
         if ((pk->hdr.seqNum) == m_nextExpSeq)
         {
             m_nextExpSeq = pk->hdr.seqNum + pk->hdr.dataSize;
-            m_faultCount = 0;
         }
         else if (pk->hdr.seqNum > m_nextExpSeq)
         {
@@ -44,8 +46,14 @@ void RecvBuffer::AdjustExpSeq()
 }
 
 bool RecvBuffer::InsertPacket(CTBDevice::Packet *packet)
-{
+{    
     m_lock.lock();
+
+    if(packet->hdr.seqNum < m_nextExpSeq){
+        m_lock.unlock();
+        return false;
+    }
+
     if (!m_buffer.empty())
     {
         auto seq = packet->hdr.seqNum;
@@ -80,7 +88,7 @@ bool RecvBuffer::InsertPacket(CTBDevice::Packet *packet)
 uint32_t RecvBuffer::Read(char *data, uint32_t size)
 {
     uint32_t res = 0;
-    if(m_buffer.empty()){
+    if(m_buffer.empty() || data == NULL){
         return 0;
     }
     m_lock.lock();    
@@ -91,7 +99,7 @@ uint32_t RecvBuffer::Read(char *data, uint32_t size)
             throw runtime_error("Provided buffer is to small to receive packet");        
         std::copy(pk->data.begin(), pk->data.end(), data);
         res = pk->hdr.dataSize;            
-        delete pk;
+        delete pk;        
         m_buffer.pop_front();        
         m_totalSize -= res;
     }

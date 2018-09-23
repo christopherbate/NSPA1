@@ -7,8 +7,14 @@ bool TestTimeout();
 
 bool TestCTBDevice();
 bool TestCTBDeviceData();
+bool TestCTBDeviceHandshake();
 
 bool TestSendBuffer();
+
+bool TestSendFile();
+
+bool TestUpdateSend();
+bool TestUpdateRecv();
 
 bool TestRecvBuffer();
 

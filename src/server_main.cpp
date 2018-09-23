@@ -10,16 +10,14 @@ using namespace std;
 
 #define FILES_DIR "./"
 
-#define BLOCK_SIZE 131072
-
 void runServer(CTBDevice *server, string port, bool *cancel)
 {
     if (server->Listen(port, *cancel))
     {
         while (!*cancel)
         {
-            server->Update();
-            std::this_thread::sleep_for(chrono::milliseconds(10));
+            server->Update(false);
+            //std::this_thread::sleep_for(chrono::milliseconds(10));
         }
     }
 }
@@ -29,37 +27,8 @@ void runServer(CTBDevice *server, string port, bool *cancel)
 */
 void HandleServerPut(std::vector<string> &tokens, CTBDevice &server)
 {
-    char buffer[PACKET_SIZE];
-    unsigned long long fileSize = stoull(tokens[2]);
-    cout << "Receiving file of size " << fileSize << endl;
-    ofstream out;
-    unsigned long long total = 0;
-    out.open(FILES_PATH_SERVER + tokens[1]);
-    bool write = true;
-    if (!out.is_open())
-    {
-
-        cerr << "Server : Could not open file for put." << endl;
-        write = false;
-    }
-    unsigned int loopCnt = 0;
-    while (total < fileSize)
-    {
-        uint32_t size = server.RecvData(buffer, PACKET_SIZE);
-        if (size > 0)
-        {
-            if (write)
-                out.write(buffer, size);
-            total += size;
-            loopCnt++;
-            if (loopCnt % 100 == 0)
-            {
-                cout << "Transfer " << total << "/" << fileSize << endl;
-            }
-        }
-    }
-    cout << "Transfer complete " << total << "/" << fileSize << endl;
-    cout << "Transfer took " << loopCnt << " packets." << endl;
+    uint64_t size = stoull(tokens[2]);
+    RecvFile(server, FILES_PATH_SERVER, tokens[1], size, true);
 }
 
 int main(int argc, char **argv)
@@ -93,8 +62,7 @@ int main(int argc, char **argv)
             CmdType cmd = ParseCmd(tokens[0]);
             switch (cmd)
             {
-            case GET:
-                cout << "Received GET" << endl;
+            case GET:                
                 break;
             case PUT:
                 HandleServerPut(tokens, server);
@@ -108,6 +76,8 @@ int main(int argc, char **argv)
             std::this_thread::sleep_for(chrono::seconds(1));
         }
     }
+
+    cout <<"Server exiting"<<endl;
 
     return 0;
 }
