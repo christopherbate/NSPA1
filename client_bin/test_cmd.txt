@@ -1,0 +1,6 @@
+ls
+put big.txt
+get test0.txt
+delete test0.txt
+get test1.txt
+exit

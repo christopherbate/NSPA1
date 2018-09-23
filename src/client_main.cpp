@@ -4,13 +4,14 @@
 
 using namespace std;
 
-void runClient(CTBDevice *client, string host, string port, bool *cancel)
+void runClient(CTBDevice *client, string host, string port, bool *cancel, bool *connected)
 {
     while (!(*cancel))
     {
         if (client->ActiveConnect(host, port, 1000))
         {
             cout << "Client connected." << endl;
+            *connected = true;
             while (!*cancel)
             {
                 client->Update(false);
@@ -38,7 +39,11 @@ int main(int argc, char **argv)
 
     CmdType command;
     bool endLoop = false;
-    std::thread clientThread(runClient, &client, argv[1], argv[2], &endLoop);
+    bool connected = false;
+    std::thread clientThread(runClient, &client, argv[1], argv[2], &endLoop,&connected);
+    while(!connected){
+
+    }
     while (!endLoop)
     {
         // Query the user
