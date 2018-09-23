@@ -88,6 +88,7 @@ bool SendResponse(CTBDevice &device, ResponseOpt &opt)
         }
     } else if (opt.msg.length() >= 0)
     {
+        bodySize = opt.msg.length();
         uint32_t currPos = 0;
         while(currPos < opt.msg.length()){
             uint32_t lengthToSend = opt.msg.length() - currPos;

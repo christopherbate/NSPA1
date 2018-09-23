@@ -63,7 +63,7 @@ int main(int argc, char **argv)
                         opt.header = "fail";
                     }
                     opt.isFile = false;
-                    opt.msg = "";
+                    opt.msg = "";                    
                     SendResponse(server,opt);
                 } else if (req.type == LS){
                     string lsResult = ReadLS();

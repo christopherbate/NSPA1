@@ -112,6 +112,7 @@ bool SendFile(CTBDevice &device, string prefix, string filepath,std::vector<stri
     if (!infile.is_open())
     {
         cerr << "File does not exist in files directory." << endl;
+        responseHeaderTokens.push_back(string("That file does not exist."));
         return false;
     }
 
